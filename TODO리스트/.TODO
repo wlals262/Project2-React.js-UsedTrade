@@ -1,0 +1,686 @@
+(과제) 중고 거래 앱 제작하기 힌트
+중고 거래 앱 제작 강사 힌트
+
+중고거래 앱 요구사항 정의서
+위치기반으로 내 주변에 등록된 중고물품을 보여주고, 이를 채팅으로 거래할 수 있는 중고거래 앱을 개발한다.
+
+필수 기능
+중고 물품이 보이는 홈 화면을 세 가지 중 두개를 선택하여 구현한다.
+위치 기반 단순 리스트 나열(난이도 하)
+
+시, 구, 동 선택 후 해당되는 동네의 물품 리스트 나열(난이도 하)
+
+Google Map 사용으로 마커 표시(난이도 상)
+
+1. 기본 Router
+강의에서 배운 기본 Router 구성으로 4~5개의 탭을 구성한다.
+
+Home (내 주변 중고 물품이 나열된 홈 탭)
+
+Search (검색으로 중고 물품을 검색할 수 있는 검색 탭)
+
+Chat (사용자간 채팅으로 거래할 수 있는 채팅 탭)
+
+Profile ( 내 위치 설정 및 거래 내역 등을 볼 수 있는 프로필 탭)
+
+const Router = () => {
+    return (
+        <Stack.Navigator screenOptions={{
+            headerShown: false,
+        }}>
+            <Stack.Screen name="Splash" component={Splash} />
+            <Stack.Screen name="MainTab" component={MainTab} />
+            <Stack.Screen name="MyPlace" component={MyPlace} />
+        </Stack.Navigator>
+    )
+}
+2. 위치 기반 리스트 나열
+react-native-geolocation-service 같은 라이브러리를 활용하여 GPS를 접근합니다.
+
+// Splash 혹은 내 정보 탭에서 정의 및 호출
+import Geolocation from 'react-native-geolocation-service';
+
+  const getMyLocation = () => {
+      console.log('get My Location =====>');
+      geolocation.getCurrentPosition(
+          (position) => {
+              console.log('😀 position =====> ', position);
+              // 상태관리 라이브러리나 Async Storage에 현재 위치 저장하기
+              // coords에 latitude와 longitude가 있음. (위경도)
+              userStore.setCurrentLocation(position.coords);
+          },
+          (error) => {
+              console.log('error가 있습니다.', error);
+              if (toast.current) {
+                  if (error.code === 1) {
+                      toast.current.show('설정에서 위치를 허용해주세요.', DURATION.LENGTH_SHORT);
+                  } else if (error.code === 5) {
+                      toast.current.show('다시 시도하여 확인을 눌러주세요.', DURATION.LENGTH_SHORT);
+                  } else {
+                      toast.current.show('다시 시도하여 확인을 눌러주세요.', DURATION.LENGTH_SHORT);
+                  }
+              }
+          },
+          { enableHighAccuracy: false, timeout: 2000 },
+      );
+  };
+GPS 권한이 있는지 여부
+
+// Permission에 따라 위치 정보 가져오기 거부 할 경우의 로직도 생각(앱 사용을 막는다거나 등)
+const getCurrentLocation = async () => {
+    if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            getMyLocation();
+        }
+    } else {
+        const ios_granted = await Geolocation.requestAuthorization('always');
+        if (ios_granted === 'granted') {
+            getMyLocation();
+        }
+    }
+}
+그 뒤 물품 데이터를 불러 올 때 위경도로 필터하여 리스트 나열
+3. 행정동, 법정동
+위치기반이 아니라 그냥 행정동, 법정동을 선택해서 해당되는 동에 저장된 중고 물품만 보여주고 싶을 경우
+
+// 시, 구, 동 데이터 정의
+const siObj = [
+    {
+        short: '서울',
+        long: '서울특별시',
+    },
+    {
+        short: '부산',
+        long: '부산광역시',
+    },
+    {
+        short: '경기',
+        long: '경기도',
+    },
+    {
+        short: '인천',
+        long: '인천광역시',
+    },
+    {
+        short: '강원',
+        long: '강원도',
+    },
+    {
+        short: '대전',
+        long: '대전광역시',
+    },
+    {
+        short: '세종',
+        long: '세종특별자치시',
+    },
+    {
+        short: '충남',
+        long: '충청남도',
+    },
+    {
+        short: '충북',
+        long: '충청북도',
+    },
+    {
+        short: '울산',
+        long: '울산광역시',
+    },
+    {
+        short: '경남',
+        long: '경상남도',
+    },
+    {
+        short: '경북',
+        long: '경상북도',
+    },
+    {
+        short: '대구',
+        long: '대구광역시',
+    },
+    {
+        short: '광주',
+        long: '광주광역시',
+    },
+    {
+        short: '전남',
+        long: '전라남도',
+    },
+    {
+        short: '전북',
+        long: '전라북도',
+    },
+    {
+        short: '제주',
+        long: '제주특별자치도',
+    },
+];
+
+const siGuList = [
+    {
+        si: '서울특별시',
+        gu: [
+            '강남구',
+            '강북구',
+            '강동구',
+            '강서구',
+            '관악구',
+            '광진구',
+            '구로구',
+            '금천구',
+            '노원구',
+            '도봉구',
+            '동대문구',
+            '동작구',
+            '마포구',
+            '서대문구',
+            '서초구',
+            '성동구',
+            '성북구',
+            '송파구',
+            '양천구',
+            '영등포구',
+            '용산구',
+            '은평구',
+            '종로구',
+            '중구',
+            '중랑구',
+        ],
+    },
+    {
+        si: '경기도',
+        gu: [
+            '가평군',
+            '고양시 덕양구',
+            '고양시 일산동구',
+            '고양시 일산서구',
+            '과천시',
+            '광명시',
+            '광주시',
+            '구리시',
+            '군포시',
+            '김포시',
+            '남양주시',
+            '동두천시',
+            '부천시',
+            '성남시 분당구',
+            '성남시 수정구',
+            '성남시 중원구',
+            '수원시 권선구',
+            '수원시 영통구',
+            '수원시 장안구',
+            '수원시 팔달구',
+            '시흥시',
+            '안산시 상록구',
+            '안성시',
+            '안양시 동안구',
+            '안양시 만안구',
+            '양주시',
+            '양평군',
+            '여주시',
+            '연천군',
+            '오산시',
+            '용인시 기흥구',
+            '용인시 수지구',
+            '용인시 처인구',
+            '의정부시',
+            '이천시',
+            '파주시',
+            '평택시',
+            '포천시',
+            '하남시',
+            '화성시',
+        ],
+    },
+    {
+        si: '인천광역시',
+        gu: [
+            '강화군', 
+            '계양구', 
+            '남동구', 
+            '동구', 
+            '미추홀구', 
+            '부평구', 
+            '서구', 
+            '연수구', 
+            '옹진군', 
+            '중구'
+        ],
+    },
+    {
+        si: '강원도',
+        gu: [
+            '강릉시',
+            '고성군',
+            '동해시',
+            '삼척시',
+            '속초시',
+            '양구군',
+            '양양군',
+            '영월군',
+            '원주시',
+            '인제군',
+            '정선군',
+            '철원군',
+            '춘천시',
+            '태백시',
+            '평창군',
+            '홍천군',
+            '화천군',
+            '횡성군',
+        ],
+    },
+    {
+        si: '대전광역시',
+        gu: ['대덕구', '동구', '서구', '유성구', '중구'],
+    },
+    {
+        si: '세종특별자치시',
+        gu: ['세종시'],
+    },
+    {
+        si: '충청남도',
+        gu: [
+            '계룡시',
+            '공주시',
+            '금산군',
+            '논산시',
+            '당진시',
+            '보령시',
+            '부여군',
+            '서산시',
+            '서천군',
+            '아산시',
+            '예산군',
+            '천안시 동남구',
+            '천안시 서북구',
+            '청양군',
+            '태안군',
+            '홍성군',
+        ],
+    },
+    {
+        si: '충청북도',
+        gu: [
+            '괴산군',
+            '단양군',
+            '보은군',
+            '영동군',
+            '옥천군',
+            '음성군',
+            '제천시',
+            '증평군',
+            '진천군',
+            '청주시 상당구',
+            '청주시 서원구',
+            '청주시 청원구',
+            '청주시 흥덕구',
+            '충주시',
+        ],
+    },
+    {
+        si: '부산광역시',
+        gu: [
+            '강서구', 
+            '금정구', 
+            '기장군', 
+            '남구', 
+            '동구', 
+            '동래구', 
+            '부산진구', 
+            '북구', 
+            '사상구', 
+            '사하구', 
+            '서구', 
+            '수영구', 
+            '연제구', 
+            '영도구', 
+            '중구', 
+            '해운대구'
+        ],
+    },
+    {
+        si: '울산광역시',
+        gu: ['남구', '동구', '북구', '울주군', '중구'],
+    },
+    {
+        si: '경상남도',
+        gu: [
+            '거제시',
+            '거창군',
+            '고성군',
+            '김해시',
+            '남해군',
+            '밀양시',
+            '사천시',
+            '산청군',
+            '양산시',
+            '의령군',
+            '진주시',
+            '창녕군',
+            '창원시 마산합포구',
+            '창원시 마산회원구',
+            '창원시 성산구',
+            '창원시 의창구',
+            '창원시 진해구',
+            '통영시',
+            '하동군',
+            '함안군',
+            '함양군',
+            '합천군',
+        ],
+    },
+    {
+        si: '경상북도',
+        gu: [
+            '경산시',
+            '경주시',
+            '고령군',
+            '구미시',
+            '군위군',
+            '김천시',
+            '문경시',
+            '봉화군',
+            '상주시',
+            '성주군',
+            '안동시',
+            '영덕군',
+            '영양군',
+            '영주시',
+            '영천시',
+            '예천군',
+            '울릉군',
+            '울진군',
+            '의성군',
+            '청도군',
+            '청송군',
+            '칠곡군',
+            '포항시 남구',
+            '포항시 북구',
+        ],
+    },
+    {
+        si: '대구광역시',
+        gu: ['남구', '달서구', '달성군', '동구', '북구', '서구', '수성구', '중구'],
+    },
+    {
+        si: '광주광역시',
+        gu: ['광산구', '남구', '동구', '북구', '서구'],
+    },
+    {
+        si: '전라남도',
+        gu: [
+            '강진군',
+            '고흥군',
+            '곡성군',
+            '광양시',
+            '구례군',
+            '나주시',
+            '담양군',
+            '목포시',
+            '무안군',
+            '보성군',
+            '순천시',
+            '신안군',
+            '여수시',
+            '영광군',
+            '영암군',
+            '완도군',
+            '장성군',
+            '장흥군',
+            '진도군',
+            '함평군',
+            '해남군',
+            '화순군',
+        ],
+    },
+    {
+        si: '전라북도',
+        gu: [
+            '고창군', 
+            '군산시', 
+            '김제시', 
+            '남원시', 
+            '무주군', 
+            '부안군', 
+            '순창군', 
+            '익산시', 
+            '임실군', 
+            '장수군', 
+            '전주시 덕진구', 
+            '전주시 완산구', 
+            '정읍시', 
+            '진안군'
+        ],
+    },
+    {
+        si: '제주특별자치도',
+        gu: ['서귀포시', '제주시'],
+    },
+];
+시, 구, 동을 리스트로 보여준 자신의 동네를 다음 선택하게 하기
+
+const { top, bottom } = useSafeAreaInsets();
+const [selectSi, setSelectSi] = useState('');
+const [selectDo, setSelectDo] = useState('');
+const [selectDong, setSelectDong] = useState('');
+
+const [doList, setDoList] = useState([]);
+
+const [selectdongList, setSelectDongList] = useState([]);
+
+// 시 선택 시
+  const handleTouchSi = (e) => {
+      setSelectSi(e);
+      const getGu = siGuList.filter((item) => item.si === e.long);
+      setDoList(getGu[0].gu);
+      setSelectDo('');
+      setSelectDongList([]);
+  };
+    
+    
+// 구 선택 시
+  const handleTouchGu = (e) => {
+      setSelectDo(e);
+      let dong = [];
+      const getDong = dongList.map((item) => {
+          // console.log(item)
+          item.includes(`${selectSi.long} ${e.replace(/ /g, '')}`) ? dong.push(item) : null;
+      });
+      console.log(dong);
+      setSelectDongList(dong);
+  };
+
+// 동 선택 시, 선택한 동네로 본인의 동네 저장하기
+  const handoleTouchDong = (e) => {
+      console.log(e);
+      navigation.navigate('SelectDongResult', { address: e });
+  };
+<View style={{ flex: 1, backgroundColor: '#FFF', paddingTop: top }}>
+    <BasicHeader title={'동 검색'} flag={'empty'} />
+    <Row>
+        <Col style={{ flex: 0.2, backgroundColor: '#F5F5F5' }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+                {siObj.map((e, i) => (
+                    <Pressable 
+		                    key={i} 
+		                    style={e.short === selectSi.short ? styles.onSelectSi : styles.offSelectSi} onPress={() => handleTouchSi(e)}>
+                        <Text allowFontScaling={false} style={e.short === selectSi.short ? styles.onSelectSiText : styles.offSelectSiText}>
+                            {e.short}
+                        </Text>
+                    </Pressable>
+                ))}
+                <View style={{ height: bottom }} />
+            </ScrollView>
+        </Col>
+        <Col style={{ flex: 0.4, borderRightWidth: 0.5, borderColor: '#C3C3C3' }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+                {doList.map((e, i) => (
+                    <Pressable style={styles.DoWrapper} key={i} onPress={() => handleTouchGu(e)}>
+                        <Text allowFontScaling={false} style={e === selectDo ? styles.onSelectDo : styles.offSelectDo}>
+                            {e}
+                        </Text>
+                    </Pressable>
+                ))}
+                <View style={{ height: bottom }} />
+            </ScrollView>
+        </Col>
+        <Col style={{ flex: 0.4, borderRightWidth: 0.5, borderColor: '#C3C3C3' }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+                {selectdongList.map((e, i) => (
+                    <Pressable onPress={() => handoleTouchDong(e)} style={styles.DoWrapper} key={i}>
+                        <Text allowFontScaling={false} style={e === selectDong ? styles.onSelectDo : styles.offSelectDo}>
+                            {e.split(' ')[2]}
+                        </Text>
+                    </Pressable>
+                ))}
+                <View style={{ height: bottom }} />
+            </ScrollView>
+        </Col>
+    </Row>
+</View>
+
+const styles = StyleSheet.create({
+    onSelectSi: {
+        backgroundColor: '#4AABFF',
+        paddingVertical: 9,
+        paddingHorizontal: 24,
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#C3C3C3',
+    },
+    offSelectSi: {
+        backgroundColor: '#F5F5F5',
+        paddingVertical: 9,
+        paddingHorizontal: 24,
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#C3C3C3',
+    },
+    onSelectSiText: {
+        fontFamily: fonts.NOTO_MEDIUM,
+        fontSize: 12,
+        lineHeight: 20,
+        color: '#FFF',
+        textAlign: 'center',
+    },
+    offSelectSiText: {
+        fontFamily: fonts.NOTO_MEDIUM,
+        fontSize: 12,
+        lineHeight: 20,
+        color: '#888',
+        textAlign: 'center',
+    },
+    DoWrapper: {
+        paddingVertical: 9,
+        paddingHorizontal: 0,
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#C3C3C3',
+        marginHorizontal: 16,
+    },
+    onSelectDo: {
+        fontFamily: fonts.NOTO_MEDIUM,
+        fontSize: 13,
+        lineHeight: 20,
+        color: '#4AABFF',
+        textAlign: 'center',
+    },
+    offSelectDo: {
+        fontFamily: fonts.NOTO,
+        fontSize: 13,
+        lineHeight: 20,
+        color: '#888',
+        textAlign: 'center',
+    },
+});
+
+1번 사진
+위 화면대로 구현한 디자인
+
+4. Map
+Map은 Google, Naver, KaKao 이렇게 3가지를 주요 사용하며, Google이 구현하기 편하다.
+
+예제에서 사용한 라이브러리
+
+react-native-maps react-native-map-clustering react-native-svg
+
+클러스터링은 맵뷰에서 여러개를 하나로 묶는 역할이며 사용은 자유이다.
+
+import Svg, { G, Ellipse, Path } from 'react-native-svg';
+import { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import MapView from 'react-native-map-clustering';
+// MapView 코드
+<MapView
+    ref={mapView}
+    provider={PROVIDER_GOOGLE}
+    style={{ flex: 1 }}
+    initialRegion={{
+        latitude,
+        longitude,
+        latitudeDelta: LATITUDE_DELTA,
+        longitudeDelta: LONGITUDE_DELTA,
+    }}
+    showsUserLocation
+    animationEnabled={false}
+    showsMyLocationButton={false}
+    onRegionChangeComplete={changeLocation}
+    minZoomLevel={12}
+    clusterColor={'#4AABFF'}
+    spiderLineColor="#4AABFF"
+    onPress={({ nativeEvent }) => {
+        if (nativeEvent.action !== 'marker-press') {
+            touchBackGround();
+            console.log('지도 누름');
+        } else {
+            console.log('마커 누름');
+        }
+    }}
+>
+    {handleMarkerList.map((v) => renderMarker(v))}
+</MapView>
+// Marker
+const renderMarker = useCallback((marker) => {
+  if (!marker.price && !marker.dc_price) return null;
+
+  if (marker.price) {
+      return (
+          <Marker
+              key={marker._id}
+              tracksViewChanges={marker.isChange}
+              coordinate={{
+                  latitude: Number(marker.lat),
+                  longitude: Number(marker.lng),
+              }}
+              onPress={selectProduct(marker)}
+              zIndex={marker.isChange ? 1 : 0}
+          >
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                  <PriceMarker isSelect={marker.isChange} />
+                  <Text allowFontScaling={false} style={[styles.markerText, { color: marker.isChange ? '#fff' : '#3a3a3a' }]}>
+                      {commaNum(marker.price)}원
+                  </Text>
+              </View>
+          </Marker>
+      );
+  }
+  
+  const PriceMarker = ({ isSelect }) => {
+    return (
+        <Svg width="98" height="40" viewBox="0 0 88.001 38">
+            <G transform="translate(-52 -353)">
+                <Ellipse cx="6" cy="2" fill="#acadae" rx="6" ry="2" transform="translate(90 387)" />
+                <G fill={isSelect ? '#4AABFF' : '#fff'}>
+                    <Path
+                        d="M-15589-2147.971l-4.97-8.285-.145-.243H-15625c-4.136 0-7.5-3.365-7.5-7.5V-2175c0-4.136 3.364-7.5 7.5-7.5h72.001c4.136 0 7.5 3.364 7.5 7.5V-2164c0 4.135-3.364 7.5-7.5 7.5h-30.885l-.145.242-4.971 8.286z"
+                        transform="translate(15685 2536)"
+                    />
+                    <Path
+                        fill={isSelect ? '#fff' : '#4AABFF'}
+                        d="M-15589-2148.943l4.542-7.57.291-.486h31.168c3.86 0 7-3.14 7-7V-2175c0-3.86-3.14-7-7-7H-15625c-3.86 0-7 3.14-7 7V-2164c0 3.86 3.14 7 7 7h31.168l.291.485 4.541 7.57m0 1.945l-5.398-9H-15625c-4.418 0-8-3.582-8-8V-2175c0-4.418 3.582-8 8-8h72.001c4.418 0 8 3.582 8 8V-2164c0 4.418-3.582 8-8 8h-30.602l-5.399 9z"
+                        transform="translate(15685 2536)"
+                    />
+                </G>
+            </G>
+        </Svg>
+    );
+};
+
+2번사진
